@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 
 from timm.models.efficientnet import EfficientNet
+from pycls.models.model_zoo import effnet
+import pycls.core.config as config
 from timm.models.efficientnet import decode_arch_def, round_channels, default_cfgs
 from timm.models.layers.activations import Swish
 
@@ -89,26 +91,31 @@ def gen_efficientnet_lite_kwargs(channel_multiplier=1.0, depth_multiplier=1.0, d
     )
     return model_kwargs
 
-class EfficientNetBaseEncoder(EfficientNet, EncoderMixin):
+class EfficientNetBaseEncoder(EncoderMixin, EfficientNet):
 
     def __init__(self, stage_idxs, out_channels, depth=5, **kwargs):
+        config.load_cfg('../pycls/configs/dds_baselines/effnet/')
         super().__init__(**kwargs)
-
+        self.eff = effnet("EfficientNet-B0_WSE", pretrained=True)
         self._stage_idxs = stage_idxs
         self._out_channels = out_channels
         self._depth = depth
         self._in_channels = 3
-
-        del self.classifier
+        #del self.classifier
 
     def get_stages(self):
         return [
             nn.Identity(),
-            nn.Sequential(self.conv_stem, self.bn1, self.act1),
-            self.blocks[:self._stage_idxs[0]],
-            self.blocks[self._stage_idxs[0]:self._stage_idxs[1]],
-            self.blocks[self._stage_idxs[1]:self._stage_idxs[2]],
-            self.blocks[self._stage_idxs[2]:],
+            #nn.Sequential(self.conv_stem, self.bn1, self.act1),
+            #self.blocks[:self._stage_idxs[0]],
+            #self.blocks[self._stage_idxs[0]:self._stage_idxs[1]],
+            #self.blocks[self._stage_idxs[1]:self._stage_idxs[2]],
+            #self.blocks[self._stage_idxs[2]:],
+            self.eff.stem,
+            nn.Sequential(self.eff.s1, self.eff.s2,),
+            self.eff.s3,
+            nn.Sequential(self.eff.s4, self.eff.s5),
+            nn.Sequential(self.eff.s6, self.eff.s7),
         ]
 
     def forward(self, x):
@@ -122,6 +129,7 @@ class EfficientNetBaseEncoder(EfficientNet, EncoderMixin):
         return features
 
     def load_state_dict(self, state_dict, **kwargs):
+        return
         state_dict.pop("classifier.bias")
         state_dict.pop("classifier.weight")
         super().load_state_dict(state_dict, **kwargs)
