@@ -6,6 +6,8 @@ from ..base.modules import Activation
 
 
 class JaccardLoss(base.Loss):
+    def add_l2(self, l2):
+        self.l2 = l2
 
     def __init__(self, eps=1., activation=None, ignore_channels=None, **kwargs):
         super().__init__(**kwargs)
@@ -20,7 +22,7 @@ class JaccardLoss(base.Loss):
             eps=self.eps,
             threshold=None,
             ignore_channels=self.ignore_channels,
-        )
+        ) + (1e-5 * self.l2)
 
 
 class DiceLoss(base.Loss):

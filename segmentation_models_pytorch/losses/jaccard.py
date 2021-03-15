@@ -11,6 +11,9 @@ __all__ = ["JaccardLoss"]
 
 class JaccardLoss(_Loss):
 
+    def add_l2(self, l2):
+        self.l2 = l2
+
     def __init__(
         self,
         mode: str,
@@ -42,6 +45,7 @@ class JaccardLoss(_Loss):
         """
         assert mode in {BINARY_MODE, MULTILABEL_MODE, MULTICLASS_MODE}
         super(JaccardLoss, self).__init__()
+        self.l2=None
 
         self.mode = mode
         if classes is not None:
@@ -103,5 +107,5 @@ class JaccardLoss(_Loss):
 
         if self.classes is not None:
             loss = loss[self.classes]
-
-        return loss.mean()
+        l2 = 0 if self.l2 is None else self.l2 * 1e-5
+        return loss.mean() + l2

@@ -94,9 +94,8 @@ def gen_efficientnet_lite_kwargs(channel_multiplier=1.0, depth_multiplier=1.0, d
 class EfficientNetBaseEncoder(EncoderMixin, EfficientNet):
 
     def __init__(self, stage_idxs, out_channels, depth=5, **kwargs):
-        config.load_cfg('../pycls/configs/dds_baselines/effnet/')
         super().__init__(**kwargs)
-        self.eff = effnet("EfficientNet-B0_WSE", pretrained=True)
+        self.eff = effnet("EfficientNet-B2", pretrained=True)
         self._stage_idxs = stage_idxs
         self._out_channels = out_channels
         self._depth = depth
