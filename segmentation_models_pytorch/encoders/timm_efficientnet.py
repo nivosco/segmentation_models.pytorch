@@ -94,8 +94,16 @@ def gen_efficientnet_lite_kwargs(channel_multiplier=1.0, depth_multiplier=1.0, d
 class EfficientNetBaseEncoder(EncoderMixin, EfficientNet):
 
     def __init__(self, stage_idxs, out_channels, depth=5, **kwargs):
+        self.name = kwargs['name']
+        del kwargs['name']
         super().__init__(**kwargs)
-        self.eff = effnet("EfficientNet-B2", pretrained=True)
+        if 'b0' in self.name:
+            self.eff = effnet("EfficientNet-B0", pretrained=True)
+        elif 'b1' in self.name:
+            self.eff = effnet("EfficientNet-B1", pretrained=True)
+        else:
+            self.eff = effnet("EfficientNet-B2", pretrained=True)
+
         self._stage_idxs = stage_idxs
         self._out_channels = out_channels
         self._depth = depth
@@ -136,8 +144,9 @@ class EfficientNetBaseEncoder(EncoderMixin, EfficientNet):
 
 class EfficientNetEncoder(EfficientNetBaseEncoder):
 
-    def __init__(self, stage_idxs, out_channels, depth=5, channel_multiplier=1.0, depth_multiplier=1.0, drop_rate=0.2):
+    def __init__(self, stage_idxs, out_channels, depth=5, channel_multiplier=1.0, depth_multiplier=1.0, drop_rate=0.2, name=None):
         kwargs = get_efficientnet_kwargs(channel_multiplier, depth_multiplier, drop_rate)
+        kwargs.update(name=name)
         super().__init__(stage_idxs, out_channels, depth, **kwargs)
 
 

@@ -45,6 +45,7 @@ def get_encoder(name, in_channels=3, depth=5, weights=None):
 
     params = encoders[name]["params"]
     params.update(depth=depth)
+    params.update(name=name)
     encoder = Encoder(**params)
 
     if weights is not None:
