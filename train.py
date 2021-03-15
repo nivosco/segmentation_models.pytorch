@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import Dataset as BaseDataset
 
 
-DATA_DIR = '/home/nivv/dataset/flat'
+DATA_DIR = '/home/nivv/dataset/temp/flat'
 
 x_train_dir = os.path.join(DATA_DIR, 'train')
 y_train_dir = os.path.join(DATA_DIR, 'train_gt')
@@ -28,17 +28,16 @@ CLASSES = ['sky', 'building', 'pole', 'road', 'pavement',
            'pedestrian', 'bicyclist', 'unlabelled', 'i', 'i', 'i', 'i', 'i', 'i', 'i']
 ACTIVATION = 'softmax'
 DEVICE = 'cuda'
-EPOCHS = 60
+EPOCHS = 40
 BATCH_SIZE = 16
-LR = 3e-4
-L2 = 1e-5
+LR = 1e-5
 
 
 def get_training_augmentation():
     train_transform = [albu.HorizontalFlip(p=0.5),
             albu.ShiftScaleRotate(scale_limit=0.5, rotate_limit=0,
                 shift_limit=0.1, p=1, border_mode=0),
-            albu.PadIfNeeded(min_height=512, min_width=1024, always_apply=True,
+            albu.PadIfNeeded(min_height=1024, min_width=2048, always_apply=True,
                 border_mode=0),
             albu.RandomCrop(height=256, width=512, always_apply=True),
             albu.IAAAdditiveGaussianNoise(p=0.2),
@@ -51,7 +50,7 @@ def get_training_augmentation():
 
 
 def get_validation_augmentation():
-    test_transform = [albu.PadIfNeeded(512, 1024)]
+    test_transform = [albu.PadIfNeeded(1024, 1024)]
     return albu.Compose(test_transform)
 
 
@@ -128,11 +127,12 @@ train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True,
 valid_loader = DataLoader(valid_dataset, batch_size=1, shuffle=False,
         num_workers=4)
 l2_reg = torch.tensor(torch.stack([torch.norm(p) for p in model.parameters()], dim=0).sum(dim=0), requires_grad=True).cuda()
-loss = smp.utils.losses.JaccardLoss()
+ignore = list([int(x) for x in np.linspace(19,255,255-19+1)])
+loss = smp.utils.losses.JaccardLoss(ignore_channels=ignore)
 loss.add_l2(l2_reg)
-metrics = [smp.utils.metrics.IoU(threshold=0.5),]
+metrics = [smp.utils.metrics.IoU(ignore_channels=ignore),]
 optimizer = torch.optim.Adam([dict(params=model.parameters(), lr=LR),])
-scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, EPOCHS // 3)
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, EPOCHS // 4)
 
 
 print("build training precedure")
@@ -163,8 +163,8 @@ for i in range(0, EPOCHS):
         max_score = valid_logs['iou_score']
         torch.save(model, './best_model.pth')
         print('Model saved with IoU {}!'.format(max_score))
-    if i % (EPOCHS // 3) == 0:
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, EPOCHS // 3)
+    if i % (EPOCHS // 4) == 0:
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, EPOCHS // 4)
 
 print("Testing the best model")
 best_model = torch.load('./best_model.pth')
