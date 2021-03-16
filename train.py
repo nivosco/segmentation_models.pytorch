@@ -29,7 +29,7 @@ ACTIVATION = 'softmax'
 DEVICE = 'cuda'
 EPOCHS = 40
 BATCH_SIZE = 16
-LR = 3e-5
+LR = 1e-5
 
 
 def get_training_augmentation():
@@ -90,7 +90,7 @@ class Dataset(BaseDataset):
         if self.preprocessing:
             sample = self.preprocessing(image=image, mask=mask)
             image, mask = sample['image'], sample['mask']
-        return image, mask
+        return image, np.array(mask, np.int64)
 
     def __len__(self):
         return len(self.ids)
@@ -102,7 +102,7 @@ def main(encoder):
 
     # create segmentation model with pretrained encoder
     print("Build model")
-    model = smp.Unet(
+    model = smp.FPN(
         encoder_name=encoder, 
         encoder_weights=ENCODER_WEIGHTS, 
         classes=len(CLASSES), 
@@ -128,7 +128,7 @@ def main(encoder):
         num_workers=4)
     l2_reg = torch.tensor(torch.stack([torch.norm(p) for p in model.parameters()], dim=0).sum(dim=0), requires_grad=True).cuda()
     ignore = list([int(x) for x in np.linspace(19,255,255-19+1)])
-    loss = smp.utils.losses.JaccardLoss(ignore_channels=ignore)
+    loss = smp.utils.losses.CrossEntropyLoss(ignore_index=255)
     loss.add_l2(l2_reg)
     metrics = [smp.utils.metrics.IoU(ignore_channels=ignore),]
     optimizer = torch.optim.Adam([dict(params=model.parameters(), lr=LR),])
@@ -157,13 +157,13 @@ def main(encoder):
         scheduler.step()
         if max_score < valid_logs['iou_score']:
             max_score = valid_logs['iou_score']
-            torch.save(model, './best_model.pth')
+            torch.save(model, './{}.pth'.format(encoder))
             print('Model saved with IoU {}!'.format(max_score))
         if i % (EPOCHS // 4) == 0:
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, EPOCHS // 4)
 
     print("Testing the best model")
-    best_model = torch.load('./best_model.pth')
+    best_model = torch.load('./{}.pth'.format(encoder))
     test_dataset = Dataset(
         x_test_dir, 
         y_test_dir, 
@@ -173,9 +173,9 @@ def main(encoder):
     test_dataloader = DataLoader(test_dataset)
     test_epoch= smp.utils.train.ValidEpoch(model=best_model,loss=loss,metrics=metrics,device=DEVICE,)
     logs = test_epoch.run(test_dataloader)
-    print(logs)
+    print("Final res {}".format(logs))
 
 if __name__ == "__main__":
-    main('timm-efficientnet-b2')
-    main('timm-efficientnet-b1')
     main('timm-efficientnet-b0')
+    main('timm-efficientnet-b1')
+    main('timm-efficientnet-b2')
